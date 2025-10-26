@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Environment files
+.env
+.env.*
+
+# AWS CDK
+**/cdk.out/
+**/cdk.context.json
+
+# Node (念のため)
+node_modules/
+
+# IDE/Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# asdf(作業用なのでignore, RPiにはGlobalインストール前提)
+.tool-versions

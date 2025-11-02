@@ -1,21 +1,68 @@
 import * as cdk from 'aws-cdk-lib';
-import { aws_s3 as s3 } from 'aws-cdk-lib';
+import {
+  aws_lambda as lambda,
+  aws_lambda_nodejs as lambdaNodejs,
+  aws_apigateway as apigw,
+  aws_dynamodb as dynamodb,
+  aws_iam as iam,
+  aws_s3 as s3,
+} from 'aws-cdk-lib';
+import { aws_s3_deployment as s3deploy } from 'aws-cdk-lib';
+import path from 'node:path';
 
 export class Part3Stack extends cdk.Stack {
   constructor(scope, id, props = {}) {
     super(scope, id, props);
 
-    const { siteBucketName } = props;
+    const { ddbTableName, ddbGsiName } = props;
 
-    const bucketProps = {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    if (!ddbTableName || !ddbGsiName) return;
+
+    const table = dynamodb.Table.fromTableName(this, 'ApiDataTable', ddbTableName);
+
+    const apiFn = new lambdaNodejs.NodejsFunction(this, 'QueryByDeviceApiFn', {
+      entry: path.resolve('lambda/part3-api.js'),
+      runtime: lambda.Runtime.NODEJS_LATEST,
+      memorySize: 256,
+      timeout: cdk.Duration.seconds(30),
+      environment: {
+        TABLE_NAME: ddbTableName,
+        GSI_NAME: ddbGsiName,
+        PK_NAME: 'device_id',
+      },
+    });
+    table.grantReadData(apiFn);
+    // 明示的にGSIへのQuery権限を付与（fromTableNameの場合の不足対策）
+    apiFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:Query'],
+      resources: [
+        `arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${ddbTableName}/index/${ddbGsiName}`,
+      ],
+    }));
+
+    const api = new apigw.RestApi(this, 'Part3Api', {
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigw.Cors.ALL_ORIGINS,
+        allowMethods: ['GET'],
+      },
+    });
+    const data = api.root.addResource('data');
+    const byDevice = data.addResource('{device_id}');
+    byDevice.addMethod('GET', new apigw.LambdaIntegration(apiFn));
+
+    // 静的ホスティング用S3バケット（web配下をデプロイ）
+    const siteBucket = new s3.Bucket(this, 'StaticSiteBucket', {
+      websiteIndexDocument: 'index.html',
+      publicReadAccess: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ACLS, // バケットポリシーでの公開を許可（ACLはブロック）
       autoDeleteObjects: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      enforceSSL: true,
-      websiteIndexDocument: 'index.html',
-    };
-    if (siteBucketName) bucketProps.bucketName = siteBucketName;
-
-    this.siteBucket = new s3.Bucket(this, 'SiteBucket', bucketProps);
+    });
+    new s3deploy.BucketDeployment(this, 'DeployWebAssets', {
+      sources: [s3deploy.Source.asset(path.resolve('web'))],
+      destinationBucket: siteBucket,
+      prune: true,
+      retainOnDelete: false,
+    });
   }
 }

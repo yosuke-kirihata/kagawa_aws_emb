@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kagawa IoT Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="config.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>Kagawa IoT Dashboard</h1>
+      <div class="range">
+        <label>device_id: <input id="deviceId" type="text" placeholder="01" /></label>
+        <label>limit: <input id="limit" type="number" value="50" min="1" max="200" /></label>
+        <button id="load">読み込み</button>
+      </div>
+    </header>
+
+    <main>
+      <div id="status" class="status" aria-live="polite"></div>
+      <section class="chart">
+        <canvas id="tempChart"></canvas>
+      </section>
+      <section>
+        <h2>一覧</h2>
+        <div id="list" class="grid"></div>
+      </section>
+    </main>
+
+    <!-- 詳細ダイアログ -->
+    <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="overlay" data-close="true"></div>
+      <div class="content">
+        <button id="modalClose" class="close" aria-label="閉じる">×</button>
+        <h2 id="modalTitle">詳細</h2>
+        <img id="modalImage" alt="preview" />
+        <div class="details">
+          <div><strong>時刻</strong>: <span id="modalTimestamp"></span></div>
+          <div><strong>温度</strong>: <span id="modalTemp"></span></div>
+          <div><strong>要約</strong>: <span id="modalSummary"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+  </html>

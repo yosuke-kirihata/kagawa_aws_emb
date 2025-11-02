@@ -20,8 +20,7 @@ const suffix = normalize(deviceId);
 // 既存リソース名を .env から取得（必須）
 const imageBucketName = process.env.IMAGE_BUCKET_NAME;
 const ddbTableName = process.env.DDB_TABLE_NAME;
-// Part3 のサイトバケットは既存前提ではないため、従来通り自動命名にしておく
-const siteBucketName = `kagawa-emb-site-${suffix}-${deployAccount || ''}`;
+const ddbGsiName = process.env.DDB_GSI_NAME;
 
 new Part2Stack(app, `Part2Stack-${suffix}`, {
   env,
@@ -31,7 +30,8 @@ new Part2Stack(app, `Part2Stack-${suffix}`, {
 
 new Part3Stack(app, `Part3Stack-${suffix}`, {
   env,
-  siteBucketName,
+  ddbTableName,
+  ddbGsiName,
 });
 
 app.synth();

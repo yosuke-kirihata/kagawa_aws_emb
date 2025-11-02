@@ -14,18 +14,19 @@ const deployRegion = process.env.DEPLOY_REGION || process.env.CDK_DEFAULT_REGION
 
 const env = { account: deployAccount, region: deployRegion };
 
-const studentId = process.env.STUDENT_ID || 'local';
-const suffix = normalize(studentId);
+const deviceId = process.env.DEVICE_ID || 'local';
+const suffix = normalize(deviceId);
 
-const account = deployAccount || '';
-const imageBucketName = `kagawa-emb-img-${suffix}-${account}`;
-const siteBucketName = `kagawa-emb-site-${suffix}-${account}`;
+// 既存リソース名を .env から取得（必須）
+const imageBucketName = process.env.IMAGE_BUCKET_NAME;
 const ddbTableName = process.env.DDB_TABLE_NAME;
+// Part3 のサイトバケットは既存前提ではないため、従来通り自動命名にしておく
+const siteBucketName = `kagawa-emb-site-${suffix}-${deployAccount || ''}`;
 
 new Part2Stack(app, `Part2Stack-${suffix}`, {
   env,
   imageBucketName,
-  existingTableName: ddbTableName,
+  ddbTableName,
 });
 
 new Part3Stack(app, `Part3Stack-${suffix}`, {

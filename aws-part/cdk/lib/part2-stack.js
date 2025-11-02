@@ -1,24 +1,57 @@
 import * as cdk from 'aws-cdk-lib';
-import { aws_s3 as s3, aws_dynamodb as dynamodb } from 'aws-cdk-lib';
+import { 
+  aws_s3 as s3,
+  aws_dynamodb as dynamodb,
+  aws_lambda as lambda,
+  aws_lambda_nodejs as lambdaNodejs,
+  aws_iam as iam,
+} from 'aws-cdk-lib';
+import { aws_s3_notifications as s3n } from 'aws-cdk-lib';
+import path from 'node:path';
 
 export class Part2Stack extends cdk.Stack {
   constructor(scope, id, props = {}) {
     super(scope, id, props);
 
-    const { imageBucketName, existingTableName } = props;
+    const { imageBucketName, ddbTableName } = props;
 
-    const bucketProps = {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      autoDeleteObjects: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      enforceSSL: true,
-    };
-    if (imageBucketName) bucketProps.bucketName = imageBucketName;
-
-    this.bucket = new s3.Bucket(this, 'ImageBucket', bucketProps);
-
-    if (existingTableName) {
-      this.existingTable = dynamodb.Table.fromTableName(this, 'ExistingDynamoTable', existingTableName);
+    if (!imageBucketName) {
+      throw new Error('IMAGE_BUCKET_NAME is required (existing S3 bucket)');
     }
+    if (!ddbTableName) {
+      throw new Error('DDB_TABLE_NAME is required (existing DynamoDB table)');
+    }
+
+    // 既存リソース参照
+    const bucket = s3.Bucket.fromBucketName(this, 'ExistingImageBucket', imageBucketName);
+    const table = dynamodb.Table.fromTableName(this, 'ExistingDynamoTable', ddbTableName);
+
+    // 画像説明Lambda
+    const describeFn = new lambdaNodejs.NodejsFunction(this, 'ImageDescribeFn', {
+      entry: path.resolve('lambda/part2-handler.js'),
+      runtime: lambda.Runtime.NODEJS_LATEST,
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(60),
+      environment: {
+        TABLE_NAME: ddbTableName,
+        DDB_PK: 'image_id',
+      },
+    });
+
+    // 非同期呼び出しのリトライを無効化
+    new lambda.EventInvokeConfig(this, 'ImageDescribeFnInvokeConfig', {
+      function: describeFn,
+      retryAttempts: 0,
+    });
+
+    // 権限
+    bucket.grantRead(describeFn);
+    table.grantReadWriteData(describeFn);
+    // Bedrock 実行権限（SDKは BedrockRuntimeClient だが、アクション名は bedrock:InvokeModel）
+    describeFn.addToRolePolicy(new iam.PolicyStatement({ actions: ['bedrock:InvokeModel'], resources: ['*'] }));
+
+    // S3イベント通知で Lambda を起動（uploads/ 配下すべてを対象）
+    const dest = new s3n.LambdaDestination(describeFn);
+    bucket.addEventNotification(s3.EventType.OBJECT_CREATED_PUT, dest, { prefix: 'uploads/' });
   }
 }

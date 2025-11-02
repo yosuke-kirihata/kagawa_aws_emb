@@ -1,5 +1,5 @@
 {
-  "app": "python3 app.py",
+  "app": "node bin/app.js",
   "context": {
     "@aws-cdk/core:stackRelativeExports": true,
     "aws-cdk:enableDiffNoFail": "true"

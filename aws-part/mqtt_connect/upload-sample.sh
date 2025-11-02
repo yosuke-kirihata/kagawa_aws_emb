@@ -24,12 +24,6 @@ HTTP_CODE=$(
     "${SIGNED_URL}"
 )
 
-  curl -sS -X PUT \
-    -H "Content-Type: image/jpeg" \
-    --upload-file "${IMAGE_FILE}" \
-    "${SIGNED_URL}"
-
-
 echo "HTTP ${HTTP_CODE}"
 if [[ "${HTTP_CODE}" != "200" && "${HTTP_CODE}" != "201" ]]; then
   echo "Upload failed." >&2

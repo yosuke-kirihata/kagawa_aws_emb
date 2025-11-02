@@ -26,5 +26,5 @@ node_modules/
 # Logs
 *.log
 
-# asdf(作業用なのでignore, RPiにはGlobalインストール前提)
-.tool-versions
+# pem keys
+crt/

@@ -16,9 +16,13 @@ function createCard(item) {
   const div = document.createElement('div');
   div.className = 'card';
   const img = document.createElement('img');
-  getImageUrl(item.device_id, item.image_id)
-    .then((u)=> img.src = u)
-    .catch(()=> img.alt = '画像取得失敗');
+  if (item.image_url) {
+    img.src = item.image_url;
+  } else {
+    getImageUrl(item.device_id, item.image_id)
+      .then((u)=> img.src = u)
+      .catch(()=> img.alt = '画像取得失敗');
+  }
   const meta = document.createElement('div');
   meta.className = 'meta';
   const ts = new Date(item.timestamp).toLocaleString();
@@ -36,9 +40,14 @@ function openModal(item) {
   document.getElementById('modalTimestamp').textContent = new Date(item.timestamp).toLocaleString();
   document.getElementById('modalTemp').textContent = (item.temperature ?? '-');
   document.getElementById('modalSummary').textContent = item.description || item.bedrock_text || '';
-  getImageUrl(item.device_id, item.image_id)
-    .then((u)=> document.getElementById('modalImage').src = u)
-    .catch(()=> document.getElementById('modalImage').alt = '画像取得失敗');
+  const modalImg = document.getElementById('modalImage');
+  if (item.image_url) {
+    modalImg.src = item.image_url;
+  } else {
+    getImageUrl(item.device_id, item.image_id)
+      .then((u)=> modalImg.src = u)
+      .catch(()=> modalImg.alt = '画像取得失敗');
+  }
   modal.classList.remove('hidden');
 }
 

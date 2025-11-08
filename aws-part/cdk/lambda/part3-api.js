@@ -37,7 +37,19 @@ export const handler = async (event) => {
   });
   const out = await ddb.send(cmd);
   const items = (out.Items || []).map(unmarshallLite);
-  return resp(200, { items });
+  const itemsWithUrl = await Promise.all(items.map(async (it) => {
+    if (IMAGE_BUCKET_NAME && it.device_id && it.image_id) {
+      const key = `uploads/${it.device_id}/${it.image_id}`;
+      try {
+        const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: IMAGE_BUCKET_NAME, Key: key }), { expiresIn: 900 });
+        return { ...it, image_url: url };
+      } catch {
+        return it;
+      }
+    }
+    return it;
+  }));
+  return resp(200, { items: itemsWithUrl });
 };
 
 function unmarshallLite(item) {

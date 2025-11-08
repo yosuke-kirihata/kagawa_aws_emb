@@ -17,7 +17,6 @@ const env = { account: deployAccount, region: deployRegion };
 const deviceId = process.env.DEVICE_ID || 'local';
 const suffix = normalize(deviceId);
 
-// 既存リソース名を .env から取得（必須）
 const imageBucketName = process.env.IMAGE_BUCKET_NAME;
 const ddbTableName = process.env.DDB_TABLE_NAME;
 const ddbGsiName = process.env.DDB_GSI_NAME;

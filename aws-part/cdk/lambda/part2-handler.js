@@ -9,7 +9,7 @@ const bedrock = new BedrockRuntimeClient({});
 
 const TABLE_NAME = process.env.TABLE_NAME;
 const DDB_PK = 'image_id';
-const MODEL_ID = 'amazon.nova-lite-v1:0';
+const MODEL_ID = 'jp.anthropic.claude-sonnet-4-5-20250929-v1:0';
 
 function streamToBuffer(stream) {
   return new Promise((resolve, reject) => {
@@ -37,16 +37,17 @@ export const handler = async (event) => {
   const base64Image = imageBytes.toString('base64');
 
   const body = {
+    anthropic_version: 'bedrock-2023-05-31',
+    max_tokens: 300,
     messages: [
       {
         role: 'user',
         content: [
-          { text: 'この画像の内容を100文字以内で日本語で説明してください。' },
-          { image: { format: 'jpeg', source: { bytes: base64Image } } },
+          { type: 'text', text: 'この画像の内容を300文字以内で日本語で説明してください。' },
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64Image } },
         ],
       },
     ],
-    inferenceConfig: { maxTokens: 300, temperature: 0.3, topP: 0.9 },
   };
 
   const resp = await bedrock.send(
@@ -60,10 +61,7 @@ export const handler = async (event) => {
 
   const respText = new TextDecoder().decode(resp.body);
   const json = JSON.parse(respText);
-  const description = json?.output?.message?.content?.find?.((c) => c.text)?.text
-    || json?.results?.[0]?.outputText
-    || json?.outputText
-    || respText;
+  const description = json?.content?.[0]?.text || respText;
 
   const parts = key.split('/');
   const imageId = parts[parts.length - 1];

@@ -64,6 +64,7 @@ function drawChart(ctx, items) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       scales: { y: { beginAtZero: false } },
       onClick: (e) => {
         const points = window.tempChartInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);

@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 
 # エンドポイント確認
 aws iot describe-endpoint --endpoint-type iot:Data-ATS --query endpointAddress --output text

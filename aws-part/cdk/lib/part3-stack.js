@@ -13,7 +13,7 @@ export class Part3Stack extends cdk.Stack {
   constructor(scope, id, props = {}) {
     super(scope, id, props);
 
-    const { ddbTableName, ddbGsiName, imageBucketName } = props;
+    const { ddbTableName, ddbGsiName, imageBucketName, basicUser, basicPassword } = props;
 
     if (!ddbTableName || !ddbGsiName) return;
 
@@ -49,12 +49,33 @@ export class Part3Stack extends cdk.Stack {
         allowMethods: ['GET'],
       },
     });
+    const authFn = new lambdaNodejs.NodejsFunction(this, 'BasicAuthorizerFn', {
+      entry: path.resolve('lambda/part3-auth-basic.js'),
+      runtime: lambda.Runtime.NODEJS_LATEST,
+      memorySize: 128,
+      timeout: cdk.Duration.seconds(10),
+      environment: {
+        BASIC_USER: basicUser || 'user',
+        BASIC_PASSWORD: basicPassword || '',
+      },
+    });
+    const authorizer = new apigw.TokenAuthorizer(this, 'BasicAuthorizer', {
+      handler: authFn,
+      identitySource: apigw.IdentitySource.header('Authorization'),
+      resultsCacheTtl: cdk.Duration.seconds(0),
+    });
     const data = api.root.addResource('data');
     const byDevice = data.addResource('{device_id}');
-    byDevice.addMethod('GET', new apigw.LambdaIntegration(apiFn));
+    byDevice.addMethod('GET', new apigw.LambdaIntegration(apiFn), {
+      authorizer,
+      authorizationType: apigw.AuthorizationType.CUSTOM,
+    });
     const imageUrl = api.root.addResource('image-url');
     const imageByDev = imageUrl.addResource('{device_id}');
     const imageByDevAndId = imageByDev.addResource('{image_id}');
-    imageByDevAndId.addMethod('GET', new apigw.LambdaIntegration(apiFn));
+    imageByDevAndId.addMethod('GET', new apigw.LambdaIntegration(apiFn), {
+      authorizer,
+      authorizationType: apigw.AuthorizationType.CUSTOM,
+    });
   }
 }

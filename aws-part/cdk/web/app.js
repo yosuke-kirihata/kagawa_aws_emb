@@ -2,7 +2,8 @@ async function fetchDataByDevice(deviceId, { limit } = {}) {
   const base = window.DASHBOARD_CONFIG.apiBase.replace(/\/?$/, '/');
   const url = new URL(base + 'data/' + encodeURIComponent(deviceId));
   if (limit) url.searchParams.set('limit', String(limit));
-  const res = await fetch(url.toString());
+  const headers = buildAuthHeader();
+  const res = await fetch(url.toString(), { headers });
   if (!res.ok) throw new Error('API error: ' + res.status);
   return res.json();
 }
@@ -134,9 +135,17 @@ window.addEventListener('load', () => {
 function getImageUrl(deviceId, imageId) {
   const base = window.DASHBOARD_CONFIG.apiBase.replace(/\/?$/, '/');
   const url = `${base}image-url/${encodeURIComponent(deviceId)}/${encodeURIComponent(imageId)}`;
-  return fetch(url).then(async (r) => {
+  return fetch(url, { headers: buildAuthHeader() }).then(async (r) => {
     if (!r.ok) throw new Error('failed to get image url');
     const j = await r.json();
     return j.url;
   });
+}
+
+function buildAuthHeader() {
+  const u = window.DASHBOARD_CONFIG.basicUser || '';
+  const p = window.DASHBOARD_CONFIG.basicPassword || '';
+  const h = u + ':' + p;
+  const token = typeof btoa === 'function' ? btoa(h) : Buffer.from(h, 'utf8').toString('base64');
+  return { Authorization: `Basic ${token}` };
 }

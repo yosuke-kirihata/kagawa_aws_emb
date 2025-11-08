@@ -20,6 +20,8 @@ const suffix = normalize(deviceId);
 const imageBucketName = process.env.IMAGE_BUCKET_NAME;
 const ddbTableName = process.env.DDB_TABLE_NAME;
 const ddbGsiName = process.env.DDB_GSI_NAME;
+const basicUser = process.env.BASIC_USER || 'user';
+const basicPassword = process.env.BASIC_PASSWORD || '';
 
 new Part2Stack(app, `Part2Stack-${suffix}`, {
   env,
@@ -32,6 +34,8 @@ new Part3Stack(app, `Part3Stack-${suffix}`, {
   ddbTableName,
   ddbGsiName,
   imageBucketName,
+  basicUser,
+  basicPassword,
 });
 
 app.synth();

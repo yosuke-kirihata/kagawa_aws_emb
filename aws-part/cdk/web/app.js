@@ -25,6 +25,7 @@ function createCard(item) {
   meta.innerText = `${ts}\n温度: ${item.temperature ?? '-'}\n要約: ${(item.description || '').slice(0, 60)}`;
   div.appendChild(img);
   div.appendChild(meta);
+  div.addEventListener('click', () => openModal(item));
   return div;
 }
 
@@ -34,7 +35,7 @@ function openModal(item) {
   const modal = document.getElementById('modal');
   document.getElementById('modalTimestamp').textContent = new Date(item.timestamp).toLocaleString();
   document.getElementById('modalTemp').textContent = (item.temperature ?? '-');
-  document.getElementById('modalSummary').textContent = item.bedrock_text || '';
+  document.getElementById('modalSummary').textContent = item.description || item.bedrock_text || '';
   getImageUrl(item.device_id, item.image_id)
     .then((u)=> document.getElementById('modalImage').src = u)
     .catch(()=> document.getElementById('modalImage').alt = '画像取得失敗');

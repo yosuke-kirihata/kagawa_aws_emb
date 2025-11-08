@@ -8,23 +8,20 @@ import { randomUUID } from 'node:crypto';
 const s3 = new S3Client({});
 const ddb = new DynamoDBClient({});
 
-// IoTデータプレーンのエンドポイントは毎回DescribeEndpointで取得（コールドスタート時に一度だけ）
 let cachedIotData;
 async function getIotDataClient() {
   if (cachedIotData) return cachedIotData;
   const iot = new IoTClient({});
   const out = await iot.send(new DescribeEndpointCommand({ endpointType: 'iot:Data-ATS' }));
-  const endpoint = out.endpointAddress; // 例: aaaaa-ats.iot.ap-northeast-1.amazonaws.com
+  const endpoint = out.endpointAddress;
   cachedIotData = new IoTDataPlaneClient({ endpoint: `https://${endpoint}` });
   return cachedIotData;
 }
 
-// 環境変数
-const BUCKET_NAME = process.env.IMAGE_BUCKET_NAME; // 既存の画像バケット名
-const TABLE_NAME = process.env.DDB_TABLE_NAME; // 既存DDB
+const BUCKET_NAME = process.env.IMAGE_BUCKET_NAME;
+const TABLE_NAME = process.env.DDB_TABLE_NAME;
 
-// 定数
-const DEFAULT_EXPIRES = 300; // 秒
+const DEFAULT_EXPIRES = 300;
 
 export const handler = async (event) => {
   const body = typeof event === 'string' ? JSON.parse(event) : (event || {});
@@ -41,7 +38,6 @@ export const handler = async (event) => {
     throw new Error('device_id not found in topic');
   }
   const device_id = m[1];
-  // timestampは数値（エポックms）として扱う
   const tsInput = body.timestamp;
   const tsNum = Number.isFinite(Number(tsInput)) ? Number(tsInput) : Date.now();
   const image_id = randomUUID();
@@ -66,7 +62,6 @@ export const handler = async (event) => {
     contentType,
   });
 
-  // Debug logs (body, env, publish payload)
   console.log('[incoming event]', { topic, body });
   console.log('[env]', { BUCKET_NAME, TABLE_NAME });
   console.log('[mqtt.publish]', { replyTopic, payload });
@@ -76,7 +71,7 @@ export const handler = async (event) => {
     new PublishCommand({ topic: replyTopic, qos: 0, payload: new TextEncoder().encode(payload) })
   );
 
-  // DynamoDBにPENDINGレコードを保存
+
   if (!TABLE_NAME) throw new Error('TABLE_NAME or DDB_TABLE_NAME env is required');
   const item = {
     image_id: { S: image_id },

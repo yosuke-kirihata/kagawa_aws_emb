@@ -62,6 +62,8 @@ function drawChart(ctx, items) {
   const sorted = [...items].sort((a,b)=>a.timestamp-b.timestamp);
   const labels = sorted.map(i => new Date(i.timestamp).toLocaleTimeString());
   const temps = sorted.map(i => typeof i.temperature === 'number' ? i.temperature : null);
+  const hums  = sorted.map(i => typeof i.humidity === 'number' ? i.humidity : null);
+  const co2s  = sorted.map(i => typeof i.co2 === 'number' ? i.co2 : null);
   if (window.tempChartInstance && typeof window.tempChartInstance.destroy === 'function') {
     window.tempChartInstance.destroy();
   }
@@ -69,12 +71,20 @@ function drawChart(ctx, items) {
     type: 'line',
     data: {
       labels,
-      datasets: [{ label: '温度(°C)', data: temps, borderColor: '#0b5fff', tension: 0.2, spanGaps: true, pointRadius: 4, pointHoverRadius: 6 }]
+      datasets: [
+        { label: '温度(°C)', data: temps, yAxisID: 'yTemp', borderColor: '#0b5fff', backgroundColor: '#0b5fff', tension: 0.2, spanGaps: true, pointRadius: 3, pointHoverRadius: 5 },
+        { label: '湿度(%)',  data: hums,  yAxisID: 'yHum',  borderColor: '#16a34a', backgroundColor: '#16a34a', tension: 0.2, spanGaps: true, pointRadius: 3, pointHoverRadius: 5 },
+        { label: 'CO₂(ppm)', data: co2s,  yAxisID: 'yCo2',  borderColor: '#f97316', backgroundColor: '#f97316', tension: 0.2, spanGaps: true, pointRadius: 3, pointHoverRadius: 5 }
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: { y: { beginAtZero: false } },
+      scales: {
+        yTemp: { type: 'linear', position: 'left', title: { display: true, text: '温度(°C)' }, beginAtZero: false },
+        yHum:  { type: 'linear', position: 'right', title: { display: true, text: '湿度(%)' }, grid: { drawOnChartArea: false }, min: 0, max: 100 },
+        yCo2:  { type: 'linear', position: 'right', title: { display: true, text: 'CO₂(ppm)' }, grid: { drawOnChartArea: false }, offset: true }
+      },
       onClick: (e) => {
         const points = window.tempChartInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
         if (points.length) {

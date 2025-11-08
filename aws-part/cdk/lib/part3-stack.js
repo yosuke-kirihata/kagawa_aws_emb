@@ -14,7 +14,7 @@ export class Part3Stack extends cdk.Stack {
   constructor(scope, id, props = {}) {
     super(scope, id, props);
 
-    const { ddbTableName, ddbGsiName } = props;
+    const { ddbTableName, ddbGsiName, imageBucketName } = props;
 
     if (!ddbTableName || !ddbGsiName) return;
 
@@ -29,6 +29,7 @@ export class Part3Stack extends cdk.Stack {
         TABLE_NAME: ddbTableName,
         GSI_NAME: ddbGsiName,
         PK_NAME: 'device_id',
+        IMAGE_BUCKET_NAME: imageBucketName || '',
       },
     });
     table.grantReadData(apiFn);
@@ -39,6 +40,11 @@ export class Part3Stack extends cdk.Stack {
         `arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${ddbTableName}/index/${ddbGsiName}`,
       ],
     }));
+    // 画像バケットの読み取り（署名付きURL発行に必要）※バケット自体はプライベートのまま
+    if (imageBucketName) {
+      const imageBucket = s3.Bucket.fromBucketName(this, 'ImageSrcBucket', imageBucketName);
+      imageBucket.grantRead(apiFn);
+    }
 
     const api = new apigw.RestApi(this, 'Part3Api', {
       defaultCorsPreflightOptions: {
@@ -49,6 +55,11 @@ export class Part3Stack extends cdk.Stack {
     const data = api.root.addResource('data');
     const byDevice = data.addResource('{device_id}');
     byDevice.addMethod('GET', new apigw.LambdaIntegration(apiFn));
+    // 署名付きURL取得エンドポイント（同一Lambdaで処理）
+    const imageUrl = api.root.addResource('image-url');
+    const imageByDev = imageUrl.addResource('{device_id}');
+    const imageByDevAndId = imageByDev.addResource('{image_id}');
+    imageByDevAndId.addMethod('GET', new apigw.LambdaIntegration(apiFn));
 
     // 静的ホスティング用S3バケット（web配下をデプロイ）
     const siteBucket = new s3.Bucket(this, 'StaticSiteBucket', {

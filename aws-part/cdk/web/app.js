@@ -16,9 +16,10 @@ function createCard(item) {
   const div = document.createElement('div');
   div.className = 'card';
   const img = document.createElement('img');
-  // 画像URL: imageBase/{device_id}/{image_id}
-  const imgBase = (window.DASHBOARD_CONFIG.imageBase || '').replace(/\/?$/, '/');
-  img.src = imgBase + encodeURIComponent(item.device_id) + '/' + encodeURIComponent(item.image_id);
+  // 画像は署名付きURLAPIから取得
+  getImageUrl(item.device_id, item.image_id)
+    .then((u)=> img.src = u)
+    .catch(()=> img.alt = '画像取得失敗');
   const meta = document.createElement('div');
   meta.className = 'meta';
   const ts = new Date(item.timestamp).toLocaleString();
@@ -35,8 +36,9 @@ function openModal(item) {
   document.getElementById('modalTimestamp').textContent = new Date(item.timestamp).toLocaleString();
   document.getElementById('modalTemp').textContent = (item.temperature ?? '-');
   document.getElementById('modalSummary').textContent = item.bedrock_text || '';
-  const imgUrl = (window.DASHBOARD_CONFIG.imageBase || '').replace(/\/?$/, '/') + encodeURIComponent(item.device_id) + '/' + encodeURIComponent(item.image_id);
-  document.getElementById('modalImage').src = imgUrl;
+  getImageUrl(item.device_id, item.image_id)
+    .then((u)=> document.getElementById('modalImage').src = u)
+    .catch(()=> document.getElementById('modalImage').alt = '画像取得失敗');
   modal.classList.remove('hidden');
 }
 
@@ -109,3 +111,13 @@ window.addEventListener('load', () => {
   const di = document.getElementById('deviceId');
   if (di && !di.value) di.value = '01';
 });
+
+function getImageUrl(deviceId, imageId) {
+  const base = window.DASHBOARD_CONFIG.apiBase.replace(/\/?$/, '/');
+  const url = `${base}image-url/${encodeURIComponent(deviceId)}/${encodeURIComponent(imageId)}`;
+  return fetch(url).then(async (r) => {
+    if (!r.ok) throw new Error('failed to get image url');
+    const j = await r.json();
+    return j.url;
+  });
+}

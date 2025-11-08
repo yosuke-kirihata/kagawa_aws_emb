@@ -32,6 +32,7 @@ new Part3Stack(app, `Part3Stack-${suffix}`, {
   env,
   ddbTableName,
   ddbGsiName,
+  imageBucketName,
 });
 
 app.synth();

@@ -6,7 +6,7 @@ const ddb = new DynamoDBClient({});
 const s3 = new S3Client({});
 
 const TABLE_NAME = process.env.TABLE_NAME;
-const GSI_NAME = process.env.GSI_NAME; // device_id (PK), timestamp (SK)
+const GSI_NAME = process.env.GSI_NAME;
 const PK_NAME = process.env.PK_NAME || 'device_id';
 const IMAGE_BUCKET_NAME = process.env.IMAGE_BUCKET_NAME || '';
 
@@ -19,7 +19,6 @@ export const handler = async (event) => {
   if (!TABLE_NAME || !GSI_NAME) return resp(500, { message: 'TABLE_NAME/GSI_NAME not set' });
   if (!deviceId) return resp(400, { message: 'path parameter device_id is required' });
 
-  // 署名付きURLルート: /image-url/{device_id}/{image_id}
   if (imageId) {
     if (!IMAGE_BUCKET_NAME) return resp(500, { message: 'IMAGE_BUCKET_NAME not set' });
     const key = `uploads/${deviceId}/${imageId}`;
@@ -33,7 +32,7 @@ export const handler = async (event) => {
     KeyConditionExpression: `#pk = :pk`,
     ExpressionAttributeNames: { '#pk': PK_NAME },
     ExpressionAttributeValues: { ':pk': { S: deviceId } },
-    ScanIndexForward: false, // timestamp降順
+    ScanIndexForward: false,
     Limit: limit,
   });
   const out = await ddb.send(cmd);
@@ -47,7 +46,7 @@ function unmarshallLite(item) {
     if ('S' in v) obj[k] = v.S;
     else if ('N' in v) obj[k] = Number(v.N);
     else if ('BOOL' in v) obj[k] = !!v.BOOL;
-    else obj[k] = v; // fallback
+    else obj[k] = v;
   }
   return obj;
 }

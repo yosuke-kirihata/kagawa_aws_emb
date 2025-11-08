@@ -21,7 +21,6 @@ function streamToBuffer(stream) {
 }
 
 export const handler = async (event) => {
-  // S3 Put イベント
   let bucket;
   let key;
   if (event?.Records?.[0]?.s3) {
@@ -33,12 +32,10 @@ export const handler = async (event) => {
     return;
   }
 
-  // 画像取得
   const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   const imageBytes = await streamToBuffer(obj.Body instanceof Readable ? obj.Body : Readable.from(obj.Body));
   const base64Image = imageBytes.toString('base64');
 
-  // Amazon Nova（Messages API）で画像理解
   const body = {
     messages: [
       {
@@ -63,7 +60,6 @@ export const handler = async (event) => {
 
   const respText = new TextDecoder().decode(resp.body);
   const json = JSON.parse(respText);
-  // Novaの出力は output.message.content[ {text: ...} ] 形式
   const description = json?.output?.message?.content?.find?.((c) => c.text)?.text
     || json?.results?.[0]?.outputText
     || json?.outputText

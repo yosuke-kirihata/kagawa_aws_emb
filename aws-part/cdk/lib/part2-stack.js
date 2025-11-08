@@ -22,11 +22,9 @@ export class Part2Stack extends cdk.Stack {
       throw new Error('DDB_TABLE_NAME is required (existing DynamoDB table)');
     }
 
-    // 既存リソース参照
     const bucket = s3.Bucket.fromBucketName(this, 'ExistingImageBucket', imageBucketName);
     const table = dynamodb.Table.fromTableName(this, 'ExistingDynamoTable', ddbTableName);
 
-    // 画像説明Lambda
     const describeFn = new lambdaNodejs.NodejsFunction(this, 'ImageDescribeFn', {
       entry: path.resolve('lambda/part2-handler.js'),
       runtime: lambda.Runtime.NODEJS_LATEST,
@@ -38,19 +36,15 @@ export class Part2Stack extends cdk.Stack {
       },
     });
 
-    // 非同期呼び出しのリトライを無効化
     new lambda.EventInvokeConfig(this, 'ImageDescribeFnInvokeConfig', {
       function: describeFn,
       retryAttempts: 0,
     });
 
-    // 権限
     bucket.grantRead(describeFn);
     table.grantReadWriteData(describeFn);
-    // Bedrock 実行権限（SDKは BedrockRuntimeClient だが、アクション名は bedrock:InvokeModel）
     describeFn.addToRolePolicy(new iam.PolicyStatement({ actions: ['bedrock:InvokeModel'], resources: ['*'] }));
 
-    // S3イベント通知で Lambda を起動（uploads/ 配下すべてを対象）
     const dest = new s3n.LambdaDestination(describeFn);
     bucket.addEventNotification(s3.EventType.OBJECT_CREATED_PUT, dest, { prefix: 'uploads/' });
   }

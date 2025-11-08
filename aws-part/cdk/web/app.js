@@ -16,7 +16,6 @@ function createCard(item) {
   const div = document.createElement('div');
   div.className = 'card';
   const img = document.createElement('img');
-  // 画像は署名付きURLAPIから取得
   getImageUrl(item.device_id, item.image_id)
     .then((u)=> img.src = u)
     .catch(()=> img.alt = '画像取得失敗');
@@ -47,7 +46,6 @@ function closeModal() {
 }
 
 document.getElementById('modalClose').addEventListener('click', closeModal);
-// overlayクリックでも閉じる
 document.querySelector('#modal .overlay').addEventListener('click', closeModal);
 
 function drawChart(ctx, items) {

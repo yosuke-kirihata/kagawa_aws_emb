@@ -19,11 +19,12 @@ function streamToBuffer(stream) {
     stream.on('end', () => resolve(Buffer.concat(chunks)));
   });
 }
-
+// 画像がS3にアップロードされたら、この関数が起動します。
 export const handler = async (event) => {
   let bucket;
   let key;
   if (event?.Records?.[0]?.s3) {
+    // アップロードされた画像の情報を取得します。
     const record = event.Records[0];
     bucket = record.s3.bucket.name;
     key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
@@ -32,10 +33,13 @@ export const handler = async (event) => {
     return;
   }
 
+  // アップロードされた画像を取得します。
   const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  // アップロードされた画像をBedrock APIに渡せるように加工します。
   const imageBytes = await streamToBuffer(obj.Body instanceof Readable ? obj.Body : Readable.from(obj.Body));
   const base64Image = imageBytes.toString('base64');
 
+  // Bedrockに送信するプロンプトの内容をここで定義します。
   const body = {
     anthropic_version: 'bedrock-2023-05-31',
     max_tokens: 300,
@@ -50,6 +54,7 @@ export const handler = async (event) => {
     ],
   };
 
+  // Bedrock APIを実行し、結果を取得します。
   const resp = await bedrock.send(
     new InvokeModelCommand({
       modelId: MODEL_ID,
@@ -68,6 +73,7 @@ export const handler = async (event) => {
   const keyMap = { [DDB_PK]: { S: imageId } };
 
   try {
+    // 生成AIのコメントを、DynamoDBに保存します。
     await ddb.send(
       new UpdateItemCommand({
         TableName: TABLE_NAME,

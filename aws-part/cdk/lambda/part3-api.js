@@ -10,7 +10,9 @@ const GSI_NAME = process.env.GSI_NAME;
 const PK_NAME = process.env.PK_NAME || 'device_id';
 const IMAGE_BUCKET_NAME = process.env.IMAGE_BUCKET_NAME || '';
 
+// HTTPリクエストを受けたらこの関数が起動します。
 export const handler = async (event) => {
+  // リクエストのパラメータを取得します。
   const qs = event?.queryStringParameters || {};
   const pathParams = event?.pathParameters || {};
   const deviceId = pathParams.device_id;
@@ -26,6 +28,7 @@ export const handler = async (event) => {
     return resp(200, { url });
   }
 
+  // リクエストのパラメータに基づいてDynamoDBからデータを取得するためのクエリを構築します
   const cmd = new QueryCommand({
     TableName: TABLE_NAME,
     IndexName: GSI_NAME,
@@ -35,12 +38,16 @@ export const handler = async (event) => {
     ScanIndexForward: false,
     Limit: limit,
   });
+  // DynamoDBからデータを取得します。
   const out = await ddb.send(cmd);
+
   const items = (out.Items || []).map(unmarshallLite);
   const itemsWithUrl = await Promise.all(items.map(async (it) => {
     if (IMAGE_BUCKET_NAME && it.device_id && it.image_id) {
       const key = `uploads/${it.device_id}/${it.image_id}`;
       try {
+        // S3の画像にアクセスするための署名付きURLを組み立て、レスポンスに追加します。
+        // 署名付きURLは900秒後にアクセス不可能になり、万が一流出した際のセキュリティリスクを低減します。
         const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: IMAGE_BUCKET_NAME, Key: key }), { expiresIn: 900 });
         return { ...it, image_url: url };
       } catch {
@@ -52,6 +59,7 @@ export const handler = async (event) => {
   return resp(200, { items: itemsWithUrl });
 };
 
+// DynamoDBからのレスポンスを加工してJSオブジェクトに変換します。
 function unmarshallLite(item) {
   const obj = {};
   for (const [k, v] of Object.entries(item || {})) {

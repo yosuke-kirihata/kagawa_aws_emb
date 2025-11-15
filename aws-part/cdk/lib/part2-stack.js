@@ -22,9 +22,11 @@ export class Part2Stack extends cdk.Stack {
       throw new Error('DDB_TABLE_NAME is required (existing DynamoDB table)');
     }
 
+    // 先に作ったS3とDynamoDBの情報を取得します。
     const bucket = s3.Bucket.fromBucketName(this, 'ExistingImageBucket', imageBucketName);
     const table = dynamodb.Table.fromTableName(this, 'ExistingDynamoTable', ddbTableName);
 
+    // 画像の説明を生成するLambda関数を作成します。
     const describeFn = new lambdaNodejs.NodejsFunction(this, 'ImageDescribeFn', {
       entry: path.resolve('lambda/part2-handler.js'),
       runtime: lambda.Runtime.NODEJS_LATEST,
@@ -45,6 +47,7 @@ export class Part2Stack extends cdk.Stack {
     table.grantReadWriteData(describeFn);
     describeFn.addToRolePolicy(new iam.PolicyStatement({ actions: ['bedrock:InvokeModel'], resources: ['*'] }));
 
+    // 画像がS3にアップロードされたら、Lambdaに通知して、関数の起動を行う設定を追加します。
     const dest = new s3n.LambdaDestination(describeFn);
     bucket.addEventNotification(s3.EventType.OBJECT_CREATED_PUT, dest, { prefix: 'uploads/' });
   }

@@ -13,12 +13,15 @@ export class Part3Stack extends cdk.Stack {
   constructor(scope, id, props = {}) {
     super(scope, id, props);
 
+    // 先に作ったDynamoDBとS3の情報, 設定するID, PWの情報を取得します。
     const { ddbTableName, ddbGsiName, imageBucketName, basicUser, basicPassword } = props;
 
     if (!ddbTableName || !ddbGsiName) return;
 
+    // 先に作ったDynamoDBの情報を取得します。
     const table = dynamodb.Table.fromTableName(this, 'ApiDataTable', ddbTableName);
 
+    // DynamoDBからデータを取得するためのLambda関数を作成します。
     const apiFn = new lambdaNodejs.NodejsFunction(this, 'QueryByDeviceApiFn', {
       entry: path.resolve('lambda/part3-api.js'),
       runtime: lambda.Runtime.NODEJS_LATEST,
@@ -43,12 +46,14 @@ export class Part3Stack extends cdk.Stack {
       imageBucket.grantRead(apiFn);
     }
 
+    // API Gatewayを作成します。
     const api = new apigw.RestApi(this, 'Part3Api', {
       defaultCorsPreflightOptions: {
         allowOrigins: apigw.Cors.ALL_ORIGINS,
         allowMethods: ['GET'],
       },
     });
+    // Basic認証を行うためのLambda関数を作成します。
     const authFn = new lambdaNodejs.NodejsFunction(this, 'BasicAuthorizerFn', {
       entry: path.resolve('lambda/part3-auth-basic.js'),
       runtime: lambda.Runtime.NODEJS_LATEST,
@@ -59,17 +64,20 @@ export class Part3Stack extends cdk.Stack {
         BASIC_PASSWORD: basicPassword || '',
       },
     });
+    // Basic認証を行うためのAuthorizerに認証処理を行うLambdaを登録します。
     const authorizer = new apigw.TokenAuthorizer(this, 'BasicAuthorizer', {
       handler: authFn,
       identitySource: apigw.IdentitySource.header('Authorization'),
       resultsCacheTtl: cdk.Duration.seconds(0),
     });
+    // データを取得するためのAPIを作成します。
     const data = api.root.addResource('data');
     const byDevice = data.addResource('{device_id}');
     byDevice.addMethod('GET', new apigw.LambdaIntegration(apiFn), {
       authorizer,
       authorizationType: apigw.AuthorizationType.CUSTOM,
     });
+    // 画像のURLを取得するためのAPIを作成します。
     const imageUrl = api.root.addResource('image-url');
     const imageByDev = imageUrl.addResource('{device_id}');
     const imageByDevAndId = imageByDev.addResource('{image_id}');

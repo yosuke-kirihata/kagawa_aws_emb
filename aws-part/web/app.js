@@ -17,12 +17,23 @@ function createCard(item) {
   const div = document.createElement('div');
   div.className = 'card';
   const img = document.createElement('img');
+  // 画像のロードに失敗した場合はカードごと非表示にする
+  img.addEventListener('error', () => {
+    if (div && div.parentNode) {
+      div.parentNode.removeChild(div);
+    }
+  });
   if (item.image_url) {
     img.src = item.image_url;
   } else {
     getImageUrl(item.device_id, item.image_id)
       .then((u)=> img.src = u)
-      .catch(()=> img.alt = '画像取得失敗');
+      .catch(()=> {
+        img.alt = '画像取得失敗';
+        if (div && div.parentNode) {
+          div.parentNode.removeChild(div);
+        }
+      });
   }
   const meta = document.createElement('div');
   meta.className = 'meta';
@@ -37,6 +48,9 @@ function createCard(item) {
 let lastItems = [];
 
 function openModal(item) {
+  if (!item || !(item.image_url || item.image_id)) {
+    return;
+  }
   const modal = document.getElementById('modal');
   document.getElementById('modalTimestamp').textContent = new Date(item.timestamp).toLocaleString();
   document.getElementById('modalTemp').textContent = (item.temperature ?? '-');
@@ -109,7 +123,9 @@ async function load() {
     lastItems = items;
     const grid = document.getElementById('list');
     grid.innerHTML = '';
-    items.forEach(i => grid.appendChild(createCard(i)));
+
+    const displayItems = items.filter(i => !!(i && (i.image_url || i.image_id)));
+    displayItems.forEach(i => grid.appendChild(createCard(i)));
     if (items.length) {
       drawChart(document.getElementById('tempChart'), items);
       setStatus(`${items.length} 件のデータ`);

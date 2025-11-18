@@ -12,6 +12,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.927.0",
     "aws-iot-device-sdk-v2": "^1.23.1",
+    "gstreamer-superficial": "^1.2.0",
     "node-fetch": "^3.3.2"
   }
 }

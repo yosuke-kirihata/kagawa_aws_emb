@@ -1,119 +1,131 @@
 #include <Arduino.h>
-#include <SensirionI2CScd4x.h>
+#include <SensirionI2cScd4x.h>
 #include <Wire.h>
 
-SensirionI2CScd4x scd4x;
+// macro definitions
+// make sure that we use the proper definition of NO_ERROR
+#ifdef NO_ERROR
+#undef NO_ERROR
+#endif
+#define NO_ERROR 0
 
-void printUint16Hex(uint16_t value)
-{
-    Serial.print(value < 4096 ? "0" : "");
-    Serial.print(value < 256 ? "0" : "");
-    Serial.print(value < 16 ? "0" : "");
-    Serial.print(value, HEX);
+SensirionI2cScd4x sensor;
+
+static char errorMessage[64];
+static int16_t error;
+
+void PrintUint64(uint64_t& value) {
+    Serial.print("0x");
+    Serial.print((uint32_t)(value >> 32), HEX);
+    Serial.print((uint32_t)(value & 0xFFFFFFFF), HEX);
 }
 
-void printSerialNumber(uint16_t serial0, uint16_t serial1, uint16_t serial2)
-{
-    Serial.print("Serial: 0x");
-    printUint16Hex(serial0);
-    printUint16Hex(serial1);
-    printUint16Hex(serial2);
-    Serial.println();
-}
-
-void setup()
-{
+void setup() {
 
     Serial.begin(115200);
-    while (!Serial)
-    {
+    while (!Serial) {
         delay(100);
     }
-
     Wire.begin();
+    sensor.begin(Wire, SCD41_I2C_ADDR_62);
 
-    uint16_t error;
-    char errorMessage[256];
-
-    scd4x.begin(Wire);
-
-    // stop potentially previously started measurement
-    error = scd4x.stopPeriodicMeasurement();
-    if (error)
-    {
+    uint64_t serialNumber = 0;
+    delay(30);
+    // Ensure sensor is in clean state
+    error = sensor.wakeUp();
+    if (error != NO_ERROR) {
+        Serial.print("Error trying to execute wakeUp(): ");
+        errorToString(error, errorMessage, sizeof errorMessage);
+        Serial.println(errorMessage);
+    }
+    error = sensor.stopPeriodicMeasurement();
+    if (error != NO_ERROR) {
         Serial.print("Error trying to execute stopPeriodicMeasurement(): ");
-        errorToString(error, errorMessage, 256);
+        errorToString(error, errorMessage, sizeof errorMessage);
         Serial.println(errorMessage);
     }
-
-    uint16_t serial0;
-    uint16_t serial1;
-    uint16_t serial2;
-    error = scd4x.getSerialNumber(serial0, serial1, serial2);
-    if (error)
-    {
+    error = sensor.reinit();
+    if (error != NO_ERROR) {
+        Serial.print("Error trying to execute reinit(): ");
+        errorToString(error, errorMessage, sizeof errorMessage);
+        Serial.println(errorMessage);
+    }
+    // Read out information about the sensor
+    error = sensor.getSerialNumber(serialNumber);
+    if (error != NO_ERROR) {
         Serial.print("Error trying to execute getSerialNumber(): ");
-        errorToString(error, errorMessage, 256);
+        errorToString(error, errorMessage, sizeof errorMessage);
         Serial.println(errorMessage);
+        return;
     }
-    else
-    {
-        printSerialNumber(serial0, serial1, serial2);
-    }
-
-    // Start Measurement
-    error = scd4x.startPeriodicMeasurement();
-    if (error)
-    {
+    Serial.print("serial number: ");
+    PrintUint64(serialNumber);
+    Serial.println();
+    //
+    // If temperature offset and/or sensor altitude compensation
+    // is required, you should call the respective functions here.
+    // Check out the header file for the function definitions.
+    // Start periodic measurements (5sec interval)
+    error = sensor.startPeriodicMeasurement();
+    if (error != NO_ERROR) {
         Serial.print("Error trying to execute startPeriodicMeasurement(): ");
-        errorToString(error, errorMessage, 256);
+        errorToString(error, errorMessage, sizeof errorMessage);
         Serial.println(errorMessage);
+        return;
     }
-
-    Serial.println("Waiting for first measurement... (5 sec)");
+    //
+    // If low-power mode is required, switch to the low power
+    // measurement function instead of the standard measurement
+    // function above. Check out the header file for the definition.
+    // For SCD41, you can also check out the single shot measurement example.
+    //
 }
 
-void loop()
-{
-    uint16_t error;
-    char errorMessage[256];
+void loop() {
 
-    delay(100);
-
-    // Read Measurement
-    uint16_t co2 = 0;
-    float temperature = 0.0f;
-    float humidity = 0.0f;
-    bool isDataReady = false;
-    error = scd4x.getDataReadyFlag(isDataReady);
-    if (error)
-    {
-        Serial.print("Error trying to execute getDataReadyFlag(): ");
-        errorToString(error, errorMessage, 256);
+    bool dataReady = false;
+    uint16_t co2Concentration = 0;
+    float temperature = 0.0;
+    float relativeHumidity = 0.0;
+    //
+    // Slow down the sampling to 0.2Hz.
+    //
+    delay(5000);
+    error = sensor.getDataReadyStatus(dataReady);
+    if (error != NO_ERROR) {
+        Serial.print("Error trying to execute getDataReadyStatus(): ");
+        errorToString(error, errorMessage, sizeof errorMessage);
         Serial.println(errorMessage);
         return;
     }
-    if (!isDataReady)
-    {
-        return;
+    while (!dataReady) {
+        delay(100);
+        error = sensor.getDataReadyStatus(dataReady);
+        if (error != NO_ERROR) {
+            Serial.print("Error trying to execute getDataReadyStatus(): ");
+            errorToString(error, errorMessage, sizeof errorMessage);
+            Serial.println(errorMessage);
+            return;
+        }
     }
-    error = scd4x.readMeasurement(co2, temperature, humidity);
-    if (error)
-    {
+    //
+    // If ambient pressure compenstation during measurement
+    // is required, you should call the respective functions here.
+    // Check out the header file for the function definition.
+    error =
+        sensor.readMeasurement(co2Concentration, temperature, relativeHumidity);
+    if (error != NO_ERROR) {
         Serial.print("Error trying to execute readMeasurement(): ");
-        errorToString(error, errorMessage, 256);
+        errorToString(error, errorMessage, sizeof errorMessage);
         Serial.println(errorMessage);
+        return;
     }
-    else if (co2 == 0)
-    {
-        Serial.println("Invalid sample detected, skipping.");
-    }
-    else
-    {
-        Serial.print(co2);
-        Serial.print(",");
-        Serial.print(temperature);
-        Serial.print(",");
-        Serial.println(humidity);
-    }
+    //
+    // Print results in physical units.
+    Serial.print(co2Concentration);
+    Serial.print(",");
+    Serial.print(temperature);
+    Serial.print(",");
+    Serial.print(relativeHumidity);
+    Serial.println();
 }

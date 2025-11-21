@@ -1,3 +1,15 @@
+/**
+ * AWS IoT CoreへMQTTで接続し、メッセージをSubscribeするサンプル
+ * 
+ * - IoT証明書を使ったmTLS認証でAWS IoT Coreに接続
+ * - 指定トピックを購読し、受信したメッセージを表示
+ * - publish.jsと組み合わせて別ターミナルで実行することでPub/Subの動作を確認できる
+ * 
+ * 使い方:
+ *   1. このファイルを実行してSubscribe状態にする（メッセージ待機）
+ *   2. 別ターミナルでpublish.jsを実行してメッセージを送信
+ *   3. このターミナルでメッセージ受信を確認
+ */
 import { mqtt, io, iot } from "aws-iot-device-sdk-v2";
 import { TextDecoder } from "util";
 import {
@@ -6,10 +18,10 @@ import {
   ROOTCA_CERT_PATH,
   UUID,
   ENDPOINT,
-  RESPONSE_TOPIC,
+  REQUEST_TOPIC,
 } from "./config.js";
 
-const topic = RESPONSE_TOPIC;
+const topic = REQUEST_TOPIC;
 
 async function main() {
   const clientBootstrap = new io.ClientBootstrap();
@@ -20,7 +32,6 @@ async function main() {
       PRIVATE_KEY_PATH
     )
       .with_certificate_authority_from_path(undefined, ROOTCA_CERT_PATH)
-      .with_clean_session(false)
       .with_client_id(UUID + "_subscriber")
       .with_endpoint(ENDPOINT)
       .build();

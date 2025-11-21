@@ -14,6 +14,7 @@
     "aws-iot-device-sdk-v2": "^1.23.1",
     "gstreamer-superficial": "^1.2.0",
     "node-fetch": "^3.3.2",
+    "onoff": "^6.0.3",
     "serialport": "^13.0.0"
   }
 }

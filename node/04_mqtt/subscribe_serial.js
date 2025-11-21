@@ -3,15 +3,18 @@
  * 
  * - IoT証明書を使ったmTLS認証でAWS IoT Coreに接続
  * - 指定トピックを購読し、受信したメッセージを表示
+ * - メッセージのパースに成功したら、シリアルポート経由で"ALERT\n"を送信
  * - publish.jsと組み合わせて別ターミナルで実行することでPub/Subの動作を確認できる
  * 
  * 使い方:
  *   1. このファイルを実行してSubscribe状態にする（メッセージ待機）
  *   2. 別ターミナルでpublish.jsを実行してメッセージを送信
  *   3. このターミナルでメッセージ受信を確認
+ *   4. パース成功時、接続されたシリアルデバイスにアラートを送信
  */
 import { mqtt, io, iot } from "aws-iot-device-sdk-v2";
 import { TextDecoder } from "util";
+import { SerialPort } from "serialport";
 import {
   CERT_PATH,
   PRIVATE_KEY_PATH,
@@ -21,9 +24,59 @@ import {
   REQUEST_TOPIC,
 } from "./config.js";
 
+// シリアルポート設定
+const SERIAL_PORT_PATH = "/dev/ttyACM0";
+const SERIAL_BAUD_RATE = 115200;
+
 const topic = REQUEST_TOPIC;
+let serialPort = null;
+
+/**
+ * シリアルポートを初期化
+ */
+function initializeSerialPort() {
+  serialPort = new SerialPort({
+    path: SERIAL_PORT_PATH,
+    baudRate: SERIAL_BAUD_RATE,
+    dataBits: 8,
+    stopBits: 1,
+    parity: "none",
+  });
+
+  serialPort.on("open", () => {
+    console.log(`[Serial] Port opened: ${SERIAL_PORT_PATH} @ ${SERIAL_BAUD_RATE}bps`);
+  });
+
+  serialPort.on("error", (err) => {
+    console.error("[Serial] Error:", err.message);
+  });
+
+  return serialPort;
+}
+
+/**
+ * シリアルポート経由でアラートメッセージを送信
+ */
+function sendSerialAlert() {
+  if (!serialPort || !serialPort.isOpen) {
+    console.warn("[Serial] Port not available, skipping alert");
+    return;
+  }
+
+  const alertMessage = "ALERT\n";
+  serialPort.write(alertMessage, (err) => {
+    if (err) {
+      console.error("[Serial] Failed to send alert:", err.message);
+    } else {
+      console.log("[Serial] Alert sent:", alertMessage.trim());
+    }
+  });
+}
 
 async function main() {
+  // シリアルポートを初期化
+  initializeSerialPort();
+
   // AWS SDKの通信基盤を準備
   const clientBootstrap = new io.ClientBootstrap();
 
@@ -93,6 +146,9 @@ async function main() {
       try {
         const data = JSON.parse(message);
         console.log("Parsed Data:", data);
+        
+        // パース成功時、シリアルポート経由でアラートを送信
+        sendSerialAlert();
       } catch (e) {
         console.log("Could not parse as JSON");
       }

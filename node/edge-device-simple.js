@@ -101,7 +101,7 @@ function readImage(filePath) {
 }
 
 // S3アップロード
-async function uploadToS3(credentials, imageBuffer, contentType, requestId) {
+async function uploadToS3(credentials, imageBuffer, contentType, s3Key) {
   const s3Client = new S3Client({
     region: REGION,
     credentials: {
@@ -110,13 +110,6 @@ async function uploadToS3(credentials, imageBuffer, contentType, requestId) {
       sessionToken: credentials.sessionToken,
     },
   });
-
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  //   const s3Key = `uploads/${timestamp}_${requestId}.${
-  //     contentType.split("/")[1]
-  //   }`;
-  const image_id = randomUUID();
-  const s3Key = `uploads/${UUID}/${image_id}`;
 
   await s3Client.send(
     new PutObjectCommand({
@@ -133,8 +126,6 @@ async function uploadToS3(credentials, imageBuffer, contentType, requestId) {
 // メインループ
 async function captureAndUpload(imageFilePath) {
   try {
-    const requestId = `${UUID}_${Date.now()}`;
-
     // 1. センサーデータ取得
     const sensor = readSensor();
     console.log(`\n[${new Date().toISOString()}]`);
@@ -147,9 +138,10 @@ async function captureAndUpload(imageFilePath) {
     console.log(`Image: ${image.buffer.length} bytes`);
 
     // 3. MQTTでテレメトリ送信
+    const s3Key = `uploads/${UUID}/${randomUUID()}`;
     await mqttConnection.publish(
       REQUEST_TOPIC,
-      JSON.stringify({ requestId, ...sensor, timestamp: Date.now() }),
+      JSON.stringify({ s3Key, ...sensor, timestamp: Date.now() }),
       mqtt.QoS.AtLeastOnce
     );
     console.log("✓ MQTT published");
@@ -158,7 +150,7 @@ async function captureAndUpload(imageFilePath) {
     const credentials = await getCredentials();
 
     // 5. S3アップロード
-    await uploadToS3(credentials, image.buffer, image.contentType, requestId);
+    await uploadToS3(credentials, image.buffer, image.contentType, s3Key);
   } catch (error) {
     console.error("✗ Error:", error.message);
   }

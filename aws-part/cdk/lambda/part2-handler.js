@@ -22,19 +22,19 @@ function streamToBuffer(stream) {
 // 画像がS3にアップロードされたら、この関数が起動します。
 export const handler = async (event) => {
   let bucket;
-  let key;
+  let s3Key;
   if (event?.Records?.[0]?.s3) {
     // アップロードされた画像の情報を取得します。
     const record = event.Records[0];
     bucket = record.s3.bucket.name;
-    key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
+    s3Key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
   } else {
     console.log('Unexpected event (expecting S3 Put)', JSON.stringify(event));
     return;
   }
 
   // アップロードされた画像を取得します。
-  const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: s3Key }));
   // アップロードされた画像をBedrock APIに渡せるように加工します。
   const imageBytes = await streamToBuffer(obj.Body instanceof Readable ? obj.Body : Readable.from(obj.Body));
   const base64Image = imageBytes.toString('base64');
@@ -68,8 +68,7 @@ export const handler = async (event) => {
   const json = JSON.parse(respText);
   const description = json?.content?.[0]?.text || respText;
 
-  const parts = key.split('/');
-  const imageId = parts[parts.length - 1];
+  const imageId = s3Key.split('/').pop();
   const keyMap = { [DDB_PK]: { S: imageId } };
 
   try {

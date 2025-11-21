@@ -1,0 +1,15 @@
+{
+  "name": "01_led",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "led_sync.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "onoff": "^6.0.3"
+  }
+}

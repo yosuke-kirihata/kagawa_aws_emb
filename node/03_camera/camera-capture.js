@@ -1,3 +1,24 @@
+/**
+ * GStreamerを使ってカメラ画像をキャプチャするサンプル
+ * 
+ * - libcamerasrc（Raspberry Pi Camera用のGStreamerプラグイン）で画像を取得
+ * - JPEG形式で指定パスに保存
+ * - カメラ起動の安定化のため3秒のウォームアップ時間を設定
+ * 
+ * 使い方:
+ *   node camera-capture.js [出力ファイル名]
+ * 
+ * 例:
+ *   node camera-capture.js test.jpg
+ *   node camera-capture.js  # デフォルトでcaptured-image.jpgに保存
+ * 
+ * 前提条件:
+ *   - GStreamerとlibcamerasrcプラグインがインストール済みであること
+ *   - Raspberry Piカメラモジュールが接続されていること
+ * GStreamerコマンド例（動作確認用）:
+ *   gst-launch-1.0 libcamerasrc af-mode=2 ! video/x-raw,width=1920,height=1280,framerate=30/1 ! autovideosink
+ * 
+ */
 import { createRequire } from "module";
 import fs from "fs";
 

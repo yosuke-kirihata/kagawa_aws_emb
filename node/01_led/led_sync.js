@@ -1,3 +1,9 @@
+/* 
+  onoffライブラリでGPIOを制御するサンプル（同期）
+
+  使い方:
+    node led_sync.js
+*/
 import {Gpio} from "onoff";
 
 //cat /sys/kernel/debug/gpio

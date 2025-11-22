@@ -29,6 +29,8 @@ const GStreamer = require("gstreamer-superficial");
 // GStreamerで画像をキャプチャする関数
 async function captureImageWithGStreamer(outputPath) {
   return new Promise((resolve, reject) => {
+    // GStreamerパイプライン文字列
+    // ! で各処理要素をつなぎ、データを順番に流す（パイプのような仕組み）
     const pipelineStr = `
 libcamerasrc af-mode=2 ! video/x-raw,width=1920,height=1080,framerate=30/1 ! 
 videorate ! 
@@ -37,16 +39,18 @@ jpegenc !
 multifilesink location=${outputPath} max-files=1
 `;
 
+    // パイプライン文字列からGStreamerオブジェクトを生成
     const pipeline = new GStreamer.Pipeline(pipelineStr.trim());
+    // カメラ撮影開始（パイプラインを実行状態にする）
     pipeline.play();
 
     console.log("Capturing image with GStreamer (with warm-up)...");
 
-    // 3秒待ってカメラ起動を安定化
+    // 3秒待ってカメラ起動を安定化（カメラの露出・ホワイトバランス・フォーカスが調整されるまで待機）
     setTimeout(() => {
-      pipeline.stop();
+      pipeline.stop();  // パイプライン停止（これで画像が確定・保存）
       console.log(`Image saved as '${outputPath}'`);
-      resolve();
+      resolve(); // この関数の処理完了を通知（await している側に制御を戻す）
     }, 3000);
   });
 }
@@ -61,7 +65,7 @@ async function main() {
 
     // 撮影した画像ファイルの存在確認
     if (fs.existsSync(outputPath)) {
-      const stats = fs.statSync(outputPath);
+      const stats = fs.statSync(outputPath); // ファイル情報を取得
       console.log(`\n=== Capture Completed ===`);
       console.log(`File: ${outputPath}`);
       console.log(`Size: ${stats.size} bytes`);

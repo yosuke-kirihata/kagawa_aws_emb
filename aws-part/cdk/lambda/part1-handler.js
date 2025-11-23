@@ -5,7 +5,9 @@ const ddb = new DynamoDBClient({});
 const BUCKET_NAME = process.env.IMAGE_BUCKET_NAME;
 const TABLE_NAME = process.env.DDB_TABLE_NAME;
 
+// MQTTメッセージを受信したらこの関数が起動します。
 export const handler = async (event) => {
+  // MQTTメッセージの内容を取得します。
   const body = typeof event === 'string' ? JSON.parse(event) : (event || {});
   const topic = body.topic || event?.topic;
 
@@ -32,6 +34,8 @@ export const handler = async (event) => {
     status: { S: 'PENDING' },
     description: { S: '' },
   };
+
+  // センサデータをDynamoDBに保存します。
   const isNum = (v) => v !== undefined && v !== null && !Number.isNaN(Number(v));
   if (isNum(temperature)) item.temperature = { N: String(Number(temperature)) };
   if (isNum(humidity)) item.humidity = { N: String(Number(humidity)) };
